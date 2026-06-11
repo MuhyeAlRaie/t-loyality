@@ -1,4 +1,4 @@
-const App = {
+window.App = {
     user: null,
     profile: null,
 
@@ -145,7 +145,7 @@ const App = {
     }
 };
 
-const Games = {
+window.Games = {
     loop: null, score: 0,
     
     checkCooldowns: async () => {
@@ -303,7 +303,7 @@ const Games = {
     }
 };
 
-const Admin = {
+window.Admin = {
     init: async () => {
         const { data: menu } = await supabase.from('menu_items').select('*');
         const list = document.getElementById('adminMenuList');
