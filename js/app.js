@@ -21,7 +21,7 @@ window.App = {
         const pass = document.getElementById('loginPass').value;
         if(!phone || !pass) return alert("Please fill all fields");
         const email = phone + '@loyalty.app'; 
-        const { data, error } = await supabase.auth.signInWithPassword({ email, password: pass });
+        const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password: pass });
         if(error) alert(error.message);
     },
 
@@ -31,22 +31,22 @@ window.App = {
         const pass = document.getElementById('regPass').value;
         if(!name || !phone || !pass) return alert("Please fill all fields");
         const email = phone + '@loyalty.app';
-        const { data, error } = await supabase.auth.signUp({ email, password: pass });
+        const { data, error } = await supabaseClient.auth.signUp({ email, password: pass });
         if(error) alert(error.message);
         else if(data.user) {
-            await supabase.from('customers').insert([{ id: data.user.id, email, phone_number: phone, name }]);
+            await supabaseClient.from('customers').insert([{ id: data.user.id, email, phone_number: phone, name }]);
             alert("Account Created! Please login.");
             App.toggleAuthView('login');
         }
     },
 
     logout: async () => { 
-        await supabase.auth.signOut(); 
+        await supabaseClient.auth.signOut(); 
         location.reload(); 
     },
 
     loadProfile: async () => {
-        const { data, error } = await supabase.from('customers').select('*').eq('id', App.user.id).single();
+        const { data, error } = await supabaseClient.from('customers').select('*').eq('id', App.user.id).single();
         if(data) {
             App.profile = data;
             document.getElementById('view-login').classList.add('hidden');
@@ -67,7 +67,7 @@ window.App = {
         document.getElementById('dashVisits').innerText = App.profile.total_visits;
 
         // Menu
-        const { data: menu } = await supabase.from('menu_items').select('*');
+        const { data: menu } = await supabaseClient.from('menu_items').select('*');
         const mContainer = document.getElementById('menuList');
         mContainer.innerHTML = '';
         if(menu) {
@@ -77,7 +77,7 @@ window.App = {
         }
 
         // Rewards
-        const { data: rewards } = await supabase.from('rewards').select('*');
+        const { data: rewards } = await supabaseClient.from('rewards').select('*');
         const rContainer = document.getElementById('rewardsList');
         rContainer.innerHTML = '';
         if(rewards) {
@@ -93,7 +93,7 @@ window.App = {
     redeem: async (rid, cost) => {
         if(!confirm("Redeem this reward?")) return;
         const newBal = App.profile.points_balance - cost;
-        const { error } = await supabase.from('customers').update({ points_balance: newBal }).eq('id', App.user.id);
+        const { error } = await supabaseClient.from('customers').update({ points_balance: newBal }).eq('id', App.user.id);
         if(!error) { 
             alert("Reward Redeemed!"); 
             App.loadCustomerData(); 
@@ -104,7 +104,7 @@ window.App = {
 
     findCustomer: async () => {
         const phone = document.getElementById('empPhone').value;
-        const { data } = await supabase.from('customers').select('*').eq('phone_number', phone).single();
+        const { data } = await supabaseClient.from('customers').select('*').eq('phone_number', phone).single();
         if(data) {
             document.getElementById('empResult').classList.remove('hidden');
             document.getElementById('empCustName').innerText = data.name;
@@ -119,11 +119,11 @@ window.App = {
         const amount = parseFloat(document.getElementById('empAmount').value);
         if(!amount) return;
         const points = Math.floor(amount);
-        await supabase.from('customers').update({ 
+        await supabaseClient.from('customers').update({ 
             points_balance: App.empTarget.points_balance + points, 
             total_visits: App.empTarget.total_visits + 1 
         }).eq('id', App.empTarget.id);
-        await supabase.from('visits').insert([{ 
+        await supabaseClient.from('visits').insert([{ 
             customer_id: App.empTarget.id, 
             invoice_amount: amount, 
             points_earned: points 
@@ -282,7 +282,7 @@ window.Games = {
         
         if(Games.score > 0) {
             const winBal = App.profile.points_balance + Games.score;
-            await supabase.from('customers').update({points_balance: winBal}).eq('id', App.user.id);
+            await supabaseClient.from('customers').update({points_balance: winBal}).eq('id', App.user.id);
             App.profile.points_balance = winBal;
             alert(`You Won ${Games.score} Points!`);
         } else {
@@ -290,7 +290,7 @@ window.Games = {
         }
         
         // Log to DB to enforce cooldown
-        await supabase.from('game_history').insert([{
+        await supabaseClient.from('game_history').insert([{
             customer_id: App.user.id,
             game_type: type
         }]);
@@ -305,12 +305,12 @@ window.Games = {
 
 window.Admin = {
     init: async () => {
-        const { data: menu } = await supabase.from('menu_items').select('*');
+        const { data: menu } = await supabaseClient.from('menu_items').select('*');
         const list = document.getElementById('adminMenuList');
         list.innerHTML = '';
         if(menu) menu.forEach(m => { list.innerHTML += `<div class="list-group-item text-white border-secondary bg-transparent d-flex justify-content-between align-items-center"><span>${m.name}</span><button class="btn btn-sm btn-danger" onclick="Admin.deleteItem('menu_items', '${m.id}')">Del</button></div>`; });
         
-        const { data: rew } = await supabase.from('rewards').select('*');
+        const { data: rew } = await supabaseClient.from('rewards').select('*');
         const rList = document.getElementById('adminRewList');
         rList.innerHTML = '';
         if(rew) rew.forEach(r => { rList.innerHTML += `<div class="list-group-item text-white border-secondary bg-transparent d-flex justify-content-between align-items-center"><span>${r.title}</span><button class="btn btn-sm btn-danger" onclick="Admin.deleteItem('rewards', '${r.id}')">Del</button></div>`; });
@@ -320,7 +320,7 @@ window.Admin = {
         const price = document.getElementById('newMenuPrice').value;
         const img = document.getElementById('newMenuImg').value || `https://picsum.photos/seed/${name}/300/200`;
         if(name && price) {
-            await supabase.from('menu_items').insert([{ name, price, image_url: img }]);
+            await supabaseClient.from('menu_items').insert([{ name, price, image_url: img }]);
             alert('Item Added'); Admin.init(); 
             document.getElementById('newMenuName').value = ''; document.getElementById('newMenuPrice').value = '';
         }
@@ -329,12 +329,12 @@ window.Admin = {
         const title = document.getElementById('newRewTitle').value;
         const cost = document.getElementById('newRewCost').value;
         if(title && cost) {
-            await supabase.from('rewards').insert([{ title, cost_points: cost }]);
+            await supabaseClient.from('rewards').insert([{ title, cost_points: cost }]);
             alert('Reward Added'); Admin.init(); 
             document.getElementById('newRewTitle').value = ''; document.getElementById('newRewCost').value = '';
         }
     },
     deleteItem: async (table, id) => {
-        if(confirm('Delete?')) { await supabase.from(table).delete().eq('id', id); Admin.init(); }
+        if(confirm('Delete?')) { await supabaseClient.from(table).delete().eq('id', id); Admin.init(); }
     }
 };
