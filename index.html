@@ -25,14 +25,13 @@
 
     <main class="container pt-5">
         
-        <!-- VIEW: LOGIN / SIGNUP -->
+        <!-- VIEW: LOGIN -->
         <div id="view-login" class="auth-container">
             <div class="card p-4">
                 <ul class="nav nav-pills mb-4 justify-content-center">
                     <li class="nav-item"><button class="nav-link active" id="tab-login" onclick="App.toggleAuthView('login')">Login</button></li>
                     <li class="nav-item"><button class="nav-link" id="tab-signup" onclick="App.toggleAuthView('signup')">Sign Up</button></li>
                 </ul>
-                
                 <div id="form-login">
                     <h4 class="text-center mb-4">Welcome Back</h4>
                     <input type="tel" id="loginPhone" class="form-control mb-3" placeholder="Phone Number">
@@ -40,7 +39,6 @@
                     <button class="btn btn-primary w-100 mb-3" onclick="App.login()">Sign In</button>
                     <div class="text-center small text-muted">Staff: 000000 / admin</div>
                 </div>
-                
                 <div id="form-signup" class="hidden">
                     <h4 class="text-center mb-4">Join the Club</h4>
                     <input type="text" id="regName" class="form-control mb-3" placeholder="Full Name">
@@ -53,72 +51,140 @@
 
         <!-- VIEW: CUSTOMER DASHBOARD -->
         <div id="view-dashboard" class="view-section hidden">
-            <div class="row g-3 mb-5">
+            <!-- Stats Header -->
+            <div class="row g-3 mb-4">
                 <div class="col-6">
                     <div class="card p-4 text-center" style="background: var(--primary-grad);">
-                        <small class="text-white-50">POINTS BALANCE</small>
+                        <small class="text-white-50">POINTS</small>
                         <h1 class="fw-bold mt-1" id="dashPoints">0</h1>
                     </div>
                 </div>
                 <div class="col-6">
                     <div class="card p-4 text-center" style="background: rgba(255,255,255,0.1);">
-                        <small class="text-white-50">TOTAL VISITS</small>
+                        <small class="text-white-50">VISITS</small>
                         <h1 class="fw-bold mt-1" id="dashVisits">0</h1>
                     </div>
                 </div>
             </div>
 
-            <h5 class="mb-3 ms-1 text-uppercase fw-bold" style="font-size: 0.8rem; letter-spacing: 1px; color: #94a3b8;">Exclusive Games</h5>
-            <div class="row g-3 mb-5">
-                <!-- Game 1: Weekly -->
-                <div class="col-12 col-md-4">
-                    <div class="card game-card h-100" id="card-weekly-1" onclick="Games.play('burger')">
-                        <i class="fas fa-hamburger game-icon text-warning"></i>
-                        <h5>Burger Catch</h5>
-                        <small class="text-white-50 mb-2 d-block">Weekly Challenge</small>
-                        <div class="badge bg-dark border border-secondary" id="timer-burger">Check Eligibility</div>
+            <!-- Navigation Tabs -->
+            <ul class="nav nav-pills mb-4" id="userDashTabs">
+                <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tab-missions">Missions</button></li>
+                <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-games">Games</button></li>
+                <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-rewards">Rewards</button></li>
+                <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-history">History</button></li>
+            </ul>
+
+            <div class="tab-content">
+                <!-- TAB: MISSIONS -->
+                <div class="tab-pane fade show active" id="tab-missions">
+                    <div class="card p-3 mb-3 bg-light">
+                        <h5>Current Mission</h5>
+                        <p>Visit <strong id="missionTarget">5</strong> times to earn a bonus!</p>
+                        <div class="progress" style="height: 25px;">
+                            <div id="missionProgress" class="progress-bar bg-success" role="progressbar" style="width: 0%">0%</div>
+                        </div>
                     </div>
                 </div>
-                <!-- Game 2: Weekly -->
-                <div class="col-12 col-md-4">
-                    <div class="card game-card h-100" id="card-weekly-2" onclick="Games.play('coffee')">
-                        <i class="fas fa-mug-hot game-icon text-info"></i>
-                        <h5>Coffee Shooter</h5>
-                        <small class="text-white-50 mb-2 d-block">Weekly Challenge</small>
-                        <div class="badge bg-dark border border-secondary" id="timer-coffee">Check Eligibility</div>
+
+                <!-- TAB: GAMES -->
+                <div class="tab-pane fade" id="tab-games">
+                    <div class="row g-3">
+                        <div class="col-12 col-md-4">
+                            <div class="card game-card h-100" id="card-weekly-1" onclick="Games.play('burger')">
+                                <i class="fas fa-hamburger game-icon text-warning"></i>
+                                <h5>Burger Catch</h5>
+                                <small class="text-white-50 mb-2 d-block">Weekly</small>
+                                <div class="badge bg-dark border border-secondary" id="timer-burger">Check Eligibility</div>
+                            </div>
+                        </div>
+                        <div class="col-12 col-md-4">
+                            <div class="card game-card h-100" id="card-weekly-2" onclick="Games.play('coffee')">
+                                <i class="fas fa-mug-hot game-icon text-info"></i>
+                                <h5>Coffee Shooter</h5>
+                                <small class="text-white-50 mb-2 d-block">Weekly</small>
+                                <div class="badge bg-dark border border-secondary" id="timer-coffee">Check Eligibility</div>
+                            </div>
+                        </div>
+                        <div class="col-12 col-md-4">
+                            <div class="card game-card h-100" id="card-monthly" onclick="Games.play('wheel')">
+                                <i class="fas fa-dharmachakra game-icon text-danger"></i>
+                                <h5>Grand Wheel</h5>
+                                <small class="text-white-50 mb-2 d-block">Monthly</small>
+                                <div class="badge bg-dark border border-secondary" id="timer-wheel">Check Eligibility</div>
+                            </div>
+                        </div>
                     </div>
                 </div>
-                <!-- Game 3: Monthly -->
-                <div class="col-12 col-md-4">
-                    <div class="card game-card h-100" id="card-monthly" onclick="Games.play('wheel')">
-                        <i class="fas fa-dharmachakra game-icon text-danger"></i>
-                        <h5>Grand Wheel</h5>
-                        <small class="text-white-50 mb-2 d-block">Monthly Prize</small>
-                        <div class="badge bg-dark border border-secondary" id="timer-wheel">Check Eligibility</div>
-                    </div>
+
+                <!-- TAB: REWARDS -->
+                <div class="tab-pane fade" id="tab-rewards">
+                    <div id="rewardsList" class="row g-3"></div>
+                </div>
+
+                <!-- TAB: HISTORY -->
+                <div class="tab-pane fade" id="tab-history">
+                    <h5 class="mb-3">Activity Log</h5>
+                    <ul class="list-group list-group-flush bg-transparent" id="historyList"></ul>
                 </div>
             </div>
-
-            <h5 class="mb-3 ms-1 text-uppercase fw-bold" style="font-size: 0.8rem; letter-spacing: 1px; color: #94a3b8;">Our Menu</h5>
-            <div id="menuList" class="row g-3 mb-5"></div>
-
-            <h5 class="mb-3 ms-1 text-uppercase fw-bold" style="font-size: 0.8rem; letter-spacing: 1px; color: #94a3b8;">Rewards Store</h5>
-            <div id="rewardsList" class="row g-3"></div>
         </div>
 
-        <!-- VIEW: ADMIN -->
+        <!-- VIEW: ADMIN DASHBOARD -->
         <div id="view-admin" class="view-section hidden">
             <h3 class="mb-4">Admin Console</h3>
             <ul class="nav nav-pills mb-3">
-                <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tab-menu">Menu</button></li>
-                <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-rewards">Rewards</button></li>
+                <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tab-analytics">Analytics</button></li>
+                <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-settings">Settings</button></li>
+                <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-menu">Menu</button></li>
+                <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-rewards-admin">Rewards</button></li>
             </ul>
+            
             <div class="tab-content">
-                <div class="tab-pane fade show active" id="tab-menu">
+                <!-- Admin: Analytics -->
+                <div class="tab-pane fade show active" id="tab-analytics">
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-3"><div class="card p-3 text-center bg-light"><h6>Total Users</h6><h3 id="statUsers">0</h3></div></div>
+                        <div class="col-md-3"><div class="card p-3 text-center bg-light"><h6>Total Visits</h6><h3 id="statVisits">0</h3></div></div>
+                        <div class="col-md-3"><div class="card p-3 text-center bg-light"><h6>Points in Circulation</h6><h3 id="statPoints">0</h3></div></div>
+                        <div class="col-md-3"><div class="card p-3 text-center bg-light"><h6>Games Played</h6><h3 id="statGames">0</h3></div></div>
+                    </div>
+                </div>
+
+                <!-- Admin: Settings -->
+                <div class="tab-pane fade" id="tab-settings">
+                    <div class="card p-4 bg-light">
+                        <h5>Platform Configuration</h5>
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label>Points per 1 JOD</label>
+                                <input type="number" id="setPointsRate" class="form-control">
+                            </div>
+                            <div class="col-md-6">
+                                <label>Mission Target (Visits)</label>
+                                <input type="number" id="setMissionTarget" class="form-control">
+                            </div>
+                            <div class="col-md-6">
+                                <label>Game 1 Cost (Burger)</label>
+                                <input type="number" id="setCatchCost" class="form-control">
+                            </div>
+                            <div class="col-md-6">
+                                <label>Game 2 Cost (Coffee)</label>
+                                <input type="number" id="setShootCost" class="form-control">
+                            </div>
+                        </div>
+                        <button class="btn btn-primary mt-3" onclick="Admin.saveSettings()">Save Configuration</button>
+                    </div>
+                </div>
+
+                <!-- Admin: Menu -->
+                <div class="tab-pane fade" id="tab-menu">
                     <div class="card p-3 mb-3"><h5>Add Item</h5><input type="text" id="newMenuName" class="form-control mb-2" placeholder="Name"><input type="number" id="newMenuPrice" class="form-control mb-2" placeholder="Price"><input type="text" id="newMenuImg" class="form-control mb-2" placeholder="Image URL"><button class="btn btn-primary" onclick="Admin.addMenuItem()">Add</button></div>
                     <div id="adminMenuList" class="list-group bg-transparent"></div>
                 </div>
-                <div class="tab-pane fade" id="tab-rewards">
+
+                <!-- Admin: Rewards -->
+                <div class="tab-pane fade" id="tab-rewards-admin">
                     <div class="card p-3 mb-3"><h5>Add Reward</h5><input type="text" id="newRewTitle" class="form-control mb-2" placeholder="Title"><input type="number" id="newRewCost" class="form-control mb-2" placeholder="Cost Points"><button class="btn btn-primary" onclick="Admin.addReward()">Add</button></div>
                     <div id="adminRewList" class="list-group bg-transparent"></div>
                 </div>
@@ -143,7 +209,6 @@
         </div>
     </div>
 
-    <!-- ... end of body ... -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="js/config.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>

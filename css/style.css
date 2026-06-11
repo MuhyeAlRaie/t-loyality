@@ -133,3 +133,20 @@ body {
 
 .modal-header, .modal-footer { border-color: var(--glass-border); }
 .btn-close { filter: invert(1); }
+
+/* Add this to the bottom of style.css */
+
+/* Mission Progress */
+.progress {
+    background-color: rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+}
+
+/* Admin Stats */
+#tab-analytics h3 {
+    color: #0f172a;
+}
+#tab-analytics .card {
+    border: none;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+}

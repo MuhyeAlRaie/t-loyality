@@ -1,6 +1,7 @@
-window.App = {
+const App = {
     user: null,
     profile: null,
+    settings: {},
 
     toggleAuthView: (view) => {
         if(view === 'login') {
@@ -46,19 +47,22 @@ window.App = {
     },
 
     loadProfile: async () => {
-        const { data, error } = await supabaseClient.from('customers').select('*').eq('id', App.user.id).single();
+        // We use .maybeSingle() to avoid 406/500 errors if profile missing
+        const { data, error } = await supabaseClient.from('customers').select('*').eq('id', App.user.id).maybeSingle();
         if(data) {
             App.profile = data;
             document.getElementById('view-login').classList.add('hidden');
             App.updateNav(true, data.name);
-            // Admin Check
             if(data.phone_number === '000000') {
                 document.getElementById('view-admin').classList.remove('hidden');
-                Admin.init();
+                Admin.init(); // Load Admin Stats
             } else {
                 document.getElementById('view-dashboard').classList.remove('hidden');
                 App.loadCustomerData();
             }
+        } else {
+            // Profile missing? Create it or handle error
+            alert("Profile setup error. Please logout and sign up again.");
         }
     },
 
@@ -66,17 +70,11 @@ window.App = {
         document.getElementById('dashPoints').innerText = App.profile.points_balance;
         document.getElementById('dashVisits').innerText = App.profile.total_visits;
 
-        // Menu
+        // 1. Load Menu
         const { data: menu } = await supabaseClient.from('menu_items').select('*');
-        const mContainer = document.getElementById('menuList');
-        mContainer.innerHTML = '';
-        if(menu) {
-            menu.forEach(m => {
-                mContainer.innerHTML += `<div class="col-md-4 col-6"><div class="card h-100"><img src="${m.image_url}" class="menu-img"><div class="card-body p-3"><h6 class="fw-bold">${m.name}</h6><p class="text-info mb-0">${m.price} JOD</p></div></div></div>`;
-            });
-        }
+        // We don't show menu in dashboard anymore to save space, but logic is here if needed.
 
-        // Rewards
+        // 2. Load Rewards
         const { data: rewards } = await supabaseClient.from('rewards').select('*');
         const rContainer = document.getElementById('rewardsList');
         rContainer.innerHTML = '';
@@ -87,7 +85,55 @@ window.App = {
             });
         }
 
+        // 3. Load History (New Feature)
+        const { data: visits } = await supabaseClient.from('visits').select('*').eq('customer_id', App.user.id).order('created_at', { ascending: false }).limit(5);
+        const { data: games } = await supabaseClient.from('game_history').select('*').eq('customer_id', App.user.id).order('played_at', { ascending: false }).limit(5);
+        
+        const hList = document.getElementById('historyList');
+        hList.innerHTML = '';
+        
+        // Combine Visits and Games into one timeline
+        let timeline = [];
+        if(visits) visits.forEach(v => timeline.push({ type: 'Visit', date: v.created_at, detail: `+${v.points_earned} Pts` }));
+        if(games) games.forEach(g => timeline.push({ type: 'Game', date: g.played_at, detail: `Played ${g.game_type}` }));
+        
+        // Sort by date
+        timeline.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+        timeline.forEach(item => {
+            const icon = item.type === 'Visit' ? 'fa-receipt' : 'fa-gamepad';
+            const color = item.type === 'Visit' ? 'text-success' : 'text-warning';
+            hList.innerHTML += `
+                <li class="list-group-item bg-transparent text-white border-secondary d-flex justify-content-between align-items-center">
+                    <span><i class="fas ${icon} ${color} me-2"></i> ${item.type}</span>
+                    <span class="small text-muted">${new Date(item.date).toLocaleDateString()} - ${item.detail}</span>
+                </li>`;
+        });
+
+        // 4. Render Missions (New Feature)
+        App.renderMissions();
+
+        // 5. Game Cooldowns
         Games.checkCooldowns();
+    },
+
+    renderMissions: () => {
+        // Fetch settings to get mission target
+        const target = App.settings['mission_target_visits'] || 5;
+        document.getElementById('missionTarget').innerText = target;
+        
+        const current = App.profile.total_visits || 0;
+        const percentage = Math.min((current / target) * 100, 100);
+        
+        const bar = document.getElementById('missionProgress');
+        bar.style.width = percentage + '%';
+        bar.innerText = percentage + '%';
+        
+        if(percentage >= 100) {
+            bar.classList.remove('bg-success');
+            bar.classList.add('bg-warning');
+            bar.innerText = "Mission Complete!";
+        }
     },
 
     redeem: async (rid, cost) => {
@@ -104,7 +150,7 @@ window.App = {
 
     findCustomer: async () => {
         const phone = document.getElementById('empPhone').value;
-        const { data } = await supabaseClient.from('customers').select('*').eq('phone_number', phone).single();
+        const { data } = await supabaseClient.from('customers').select('*').eq('phone_number', phone).maybeSingle();
         if(data) {
             document.getElementById('empResult').classList.remove('hidden');
             document.getElementById('empCustName').innerText = data.name;
@@ -118,6 +164,7 @@ window.App = {
     addVisit: async () => {
         const amount = parseFloat(document.getElementById('empAmount').value);
         if(!amount) return;
+        const rate = App.settings['points_per_jod'] || 1;
         const points = Math.floor(amount);
         await supabaseClient.from('customers').update({ 
             points_balance: App.empTarget.points_balance + points, 
@@ -145,7 +192,7 @@ window.App = {
     }
 };
 
-window.Games = {
+const Games = {
     loop: null, score: 0,
     
     checkCooldowns: async () => {
@@ -156,7 +203,7 @@ window.Games = {
         ];
 
         for(let t of types) {
-            const { data } = await supabase
+            const { data } = await supabaseClient
                 .from('game_history')
                 .select('played_at')
                 .eq('customer_id', App.user.id)
@@ -177,14 +224,12 @@ window.Games = {
                     badge.innerText = `Wait ${remaining} Days`;
                     badge.className = "badge bg-danger";
                     card.classList.add('disabled');
-                    // Disable click
                     const clone = card.cloneNode(true);
                     card.parentNode.replaceChild(clone, card);
                 } else {
                     badge.innerText = "PLAY NOW";
                     badge.className = "badge bg-success";
                     card.classList.remove('disabled');
-                    // Ensure click is bound
                     card.onclick = () => Games.play(t.id);
                 }
             } else {
@@ -206,7 +251,6 @@ window.Games = {
         let frame = 0;
         Games.score = 0;
         
-        // Mouse Control
         canvas.onmousemove = (e) => {
             const rect = canvas.getBoundingClientRect();
             player.x = e.clientX - rect.left - 25;
@@ -216,60 +260,26 @@ window.Games = {
             ctx.clearRect(0,0,320,400);
             frame++;
             
-            // --- WHEEL GAME ---
             if(type === 'wheel') {
-                ctx.save();
-                ctx.translate(160, 200);
-                ctx.rotate(frame * 0.1);
+                ctx.save(); ctx.translate(160, 200); ctx.rotate(frame * 0.1);
                 ctx.beginPath(); ctx.arc(0,0,100,0,2*Math.PI); ctx.fillStyle='#333'; ctx.fill();
-                // Draw Segments
                 ctx.fillStyle = '#ef4444'; ctx.beginPath(); ctx.moveTo(0,0); ctx.arc(0,0,100,0,1.57); ctx.fill();
                 ctx.fillStyle = '#3b82f6'; ctx.beginPath(); ctx.moveTo(0,0); ctx.arc(0,0,100,1.57,3.14); ctx.fill();
-                ctx.fillStyle = '#22c55e'; ctx.beginPath(); ctx.moveTo(0,0); ctx.arc(0,0,100,3.14,4.71); ctx.fill();
-                ctx.fillStyle = '#eab308'; ctx.beginPath(); ctx.moveTo(0,0); ctx.arc(0,0,100,4.71,6.28); ctx.fill();
                 ctx.restore();
-
-                if(frame > 150) { 
-                    Games.score = Math.floor(Math.random() * 500) + 50;
-                    Games.endGame(modal, type);
-                    return;
-                }
-            }
-            // --- ACTION GAMES ---
-            else {
-                // Player
-                ctx.fillStyle = '#667eea';
-                ctx.fillRect(player.x, player.y, player.w, player.h);
-                ctx.font="30px Arial";
-                ctx.fillText(type==='burger'?'🧺':'☕', player.x, player.y+40);
-
-                // Spawner
-                if(frame % 40 === 0) {
-                    items.push({ x: Math.random()*280, y: type==='burger'?-40:400, val: Math.random() > 0.3 ? 10 : -5 });
-                }
-                
-                // Items Logic
+                if(frame > 150) { Games.score = Math.floor(Math.random() * 500) + 50; Games.endGame(modal, type); return; }
+            } else {
+                ctx.fillStyle = '#667eea'; ctx.fillRect(player.x, player.y, player.w, player.h);
+                ctx.font="30px Arial"; ctx.fillText(type==='burger'?'🧺':'☕', player.x, player.y+40);
+                if(frame % 40 === 0) items.push({ x: Math.random()*280, y: type==='burger'?-40:400, val: Math.random() > 0.3 ? 10 : -5 });
                 for(let i=0; i<items.length; i++) {
                     let it = items[i];
                     it.y += type==='burger' ? 4 : -4;
-                    ctx.font = "25px Arial";
-                    ctx.fillText(it.val > 0 ? '🍔' : '💣', it.x, it.y);
-                    
-                    if(type==='burger' && it.y > 350 && Math.abs(it.x - player.x) < 40) {
-                        Games.score += it.val;
-                        items.splice(i, 1); i--;
-                    }
-                    else if((type==='burger' && it.y > 400) || (type==='coffee' && it.y < 0)) {
-                        items.splice(i, 1); i--;
-                    }
+                    ctx.font = "25px Arial"; ctx.fillText(it.val > 0 ? '🍔' : '💣', it.x, it.y);
+                    if(type==='burger' && it.y > 350 && Math.abs(it.x - player.x) < 40) { Games.score += it.val; items.splice(i, 1); i--; }
+                    else if((type==='burger' && it.y > 400) || (type==='coffee' && it.y < 0)) { items.splice(i, 1); i--; }
                 }
-
-                if(frame > 600) { 
-                    Games.endGame(modal, type);
-                    return;
-                }
+                if(frame > 600) { Games.endGame(modal, type); return; }
             }
-
             document.getElementById('gameScore').innerText = 'Score: ' + Games.score;
             Games.loop = requestAnimationFrame(update);
         };
@@ -279,42 +289,70 @@ window.Games = {
     endGame: async (modal, type) => {
         Games.stop();
         modal.hide();
-        
         if(Games.score > 0) {
             const winBal = App.profile.points_balance + Games.score;
             await supabaseClient.from('customers').update({points_balance: winBal}).eq('id', App.user.id);
             App.profile.points_balance = winBal;
             alert(`You Won ${Games.score} Points!`);
-        } else {
-            alert("Better luck next time!");
-        }
-        
-        // Log to DB to enforce cooldown
-        await supabaseClient.from('game_history').insert([{
-            customer_id: App.user.id,
-            game_type: type
-        }]);
-        
+        } else alert("Better luck next time!");
+        await supabaseClient.from('game_history').insert([{ customer_id: App.user.id, game_type: type }]);
         App.loadCustomerData();
-    },
-    
-    stop: () => {
-        if(Games.loop) cancelAnimationFrame(Games.loop);
-    }
+    }, stop: () => { if(Games.loop) cancelAnimationFrame(Games.loop); }
 };
 
-window.Admin = {
+const Admin = {
     init: async () => {
+        // 1. Load Analytics
+        const { data: customers } = await supabaseClient.from('customers').select('points_balance, total_visits');
+        const { data: visits } = await supabaseClient.from('visits').select('*');
+        const { data: games } = await supabaseClient.from('game_history').select('*');
+        
+        if(customers) {
+            const totalPoints = customers.reduce((sum, c) => sum + c.points_balance, 0);
+            const totalVisits = customers.reduce((sum, c) => sum + c.total_visits, 0);
+            document.getElementById('statUsers').innerText = customers.length;
+            document.getElementById('statPoints').innerText = totalPoints;
+            document.getElementById('statVisits').innerText = totalVisits;
+            document.getElementById('statGames').innerText = (games || []).length;
+        }
+
+        // 2. Load Settings into Inputs
+        const { data: sets } = await supabaseClient.from('app_settings').select('*');
+        sets.forEach(s => App.settings[s.key] = s.value);
+        document.getElementById('setPointsRate').value = App.settings['points_per_jod'] || 1;
+        document.getElementById('setMissionTarget').value = App.settings['mission_target_visits'] || 5;
+        document.getElementById('setCatchCost').value = App.settings['catch_cost'] || 20;
+        document.getElementById('setShootCost').value = App.settings['shoot_cost'] || 30;
+
+        // 3. Load Menu
         const { data: menu } = await supabaseClient.from('menu_items').select('*');
         const list = document.getElementById('adminMenuList');
         list.innerHTML = '';
         if(menu) menu.forEach(m => { list.innerHTML += `<div class="list-group-item text-white border-secondary bg-transparent d-flex justify-content-between align-items-center"><span>${m.name}</span><button class="btn btn-sm btn-danger" onclick="Admin.deleteItem('menu_items', '${m.id}')">Del</button></div>`; });
         
+        // 4. Load Rewards
         const { data: rew } = await supabaseClient.from('rewards').select('*');
         const rList = document.getElementById('adminRewList');
         rList.innerHTML = '';
         if(rew) rew.forEach(r => { rList.innerHTML += `<div class="list-group-item text-white border-secondary bg-transparent d-flex justify-content-between align-items-center"><span>${r.title}</span><button class="btn btn-sm btn-danger" onclick="Admin.deleteItem('rewards', '${r.id}')">Del</button></div>`; });
     },
+
+    saveSettings: async () => {
+        const pRate = document.getElementById('setPointsRate').value;
+        const mTarget = document.getElementById('setMissionTarget').value;
+        const cCost = document.getElementById('setCatchCost').value;
+        const sCost = document.getElementById('setShootCost').value;
+
+        await supabaseClient.from('app_settings').upsert([
+            { key: 'points_per_jod', value: pRate },
+            { key: 'mission_target_visits', value: mTarget },
+            { key: 'catch_cost', value: cCost },
+            { key: 'shoot_cost', value: sCost }
+        ]);
+        alert("Settings Saved!");
+        Admin.init(); // Refresh stats/logic
+    },
+
     addMenuItem: async () => {
         const name = document.getElementById('newMenuName').value;
         const price = document.getElementById('newMenuPrice').value;
